@@ -7,6 +7,10 @@ const COMMAND_PROMPTS: Record<string, string> = {
   standup:
     "Find my unresolved Jira issues (assignee = currentUser() AND resolution = Unresolved) and write a 3-bullet " +
     "standup: yesterday, today, blockers. Link every ticket key.",
+  reviews:
+    "List GitLab merge requests waiting for my review (scope reviews_for_me) and my own open ones (scope " +
+    "created_by_me). For each, give one line with its pipeline status and anything blocking a merge " +
+    "(draft, conflicts, failed pipeline). Link every merge request.",
 };
 
 export function registerParticipant(ctx: vscode.ExtensionContext, skills: SkillLibrary) {
@@ -16,7 +20,9 @@ export function registerParticipant(ctx: vscode.ExtensionContext, skills: SkillL
 
     const system =
       "You are DevAssist, a developer assistant. Use tools to look things up rather than guessing. " +
-      "Cite ticket keys as links. Only call write tools when the user explicitly asks.\n\n" +
+      "Cite Jira keys, merge requests (group/project!123) and pipelines as links. " +
+      "For GitLab tools, omit project to use the repo open in the workspace. " +
+      "Only call write tools when the user explicitly asks.\n\n" +
       skills.indexForPrompt();
 
     const messages: vscode.LanguageModelChatMessage[] = [vscode.LanguageModelChatMessage.User(system)];

@@ -46,3 +46,11 @@ test("204 resolves", async () => {
   const jira = new JiraClient(() => "https://j", async () => ({ type: "bearer", token: "t" }), fakeFetch(204, null));
   await jira.addComment("A-1", "hi");
 });
+
+test("myself returns display name", async () => {
+  const seen: { url?: string; init?: RequestInit } = {};
+  const jira = new JiraClient(() => "https://j", async () => ({ type: "bearer", token: "t" }),
+    fakeFetch(200, { displayName: "Sam B", name: "sam" }, seen));
+  assert.deepEqual(await jira.myself(), { displayName: "Sam B", name: "sam" });
+  assert.equal(seen.url, "https://j/rest/api/2/myself");
+});

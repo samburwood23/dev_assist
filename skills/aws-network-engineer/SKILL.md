@@ -33,8 +33,11 @@ Ask only for what is missing, in one message:
 ## 3. Use read-only evidence
 
 Prefer commands that only read. Suggest them to the user, or run them in the terminal only if the user
-has agreed and their AWS credentials are already configured. Always pass `--region` and, where relevant,
-`--profile`. Useful starting points:
+has agreed. If the user saved AWS credentials in the DevAssist sidebar, tell them to use its
+**Open terminal** button (or **DevAssist: Open AWS Terminal**): that terminal already has the keys and
+default region in its environment. Otherwise they need their own profile/SSO login. Pass `--region`
+explicitly when it differs from the default. Start with `aws sts get-caller-identity` to confirm which
+account you're looking at. Useful starting points:
 
 ```bash
 aws ec2 describe-route-tables --filters Name=association.subnet-id,Values=<subnet-id>

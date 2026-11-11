@@ -1,7 +1,7 @@
 {
   "name": "devassist",
   "displayName": "DevAssist",
-  "description": "Developer assistant: Jira tools, GitLab connection, an @assist chat participant and skill folders for VS Code chat.",
+  "description": "Developer assistant: Jira and GitLab tools, AWS credentials, an @assist chat participant and skill folders for VS Code chat.",
   "version": "0.0.1",
   "publisher": "devassist",
   "license": "UNLICENSED",
@@ -38,6 +38,11 @@
           "type": "string",
           "default": "https://gitlab.com",
           "description": "GitLab base URL, e.g. https://gitlab.com or https://gitlab.company.com. The token is kept in the OS keychain: use the DevAssist sidebar or 'DevAssist: Set GitLab Token'."
+        },
+        "devassist.aws.region": {
+          "type": "string",
+          "default": "us-east-1",
+          "description": "Default AWS region for the credentials saved in the DevAssist sidebar (used for the STS check and the AWS terminal)."
         }
       }
     },
@@ -54,6 +59,8 @@
     "commands": [
       { "command": "devassist.setJiraToken", "title": "DevAssist: Set Jira Token" },
       { "command": "devassist.setGitLabToken", "title": "DevAssist: Set GitLab Token" },
+      { "command": "devassist.openConnections", "title": "DevAssist: Manage Connections" },
+      { "command": "devassist.openAwsTerminal", "title": "DevAssist: Open AWS Terminal" },
       { "command": "devassist.reloadSkills", "title": "DevAssist: Reload Skills" }
     ],
     "languageModelTools": [
@@ -105,6 +112,142 @@
         }
       },
       {
+        "name": "devassist_listGitLabMergeRequests",
+        "displayName": "List GitLab merge requests",
+        "modelDescription": "List GitLab merge requests (up to 20, newest activity first). Without project it searches every project the user can see; with project 'current' it uses the workspace repo. Defaults: state=opened, scope=assigned_to_me when no project is given. Use scope reviews_for_me for 'what do I need to review'.",
+        "userDescription": "List GitLab merge requests.",
+        "toolReferenceName": "gitlabMRs",
+        "canBeReferencedInPrompt": true,
+        "tags": ["devassist", "gitlab", "read"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "project": { "type": "string", "description": "Optional project path 'group/project', numeric ID, or 'current' for the workspace repo. Omit to search all projects." },
+            "state": { "type": "string", "enum": ["opened", "closed", "merged", "all"], "description": "Default opened" },
+            "scope": { "type": "string", "enum": ["assigned_to_me", "created_by_me", "reviews_for_me", "all"], "description": "Whose MRs. Default assigned_to_me without a project, all with one." },
+            "search": { "type": "string", "description": "Text to match in title or description" },
+            "targetBranch": { "type": "string", "description": "Only MRs targeting this branch" }
+          }
+        }
+      },
+      {
+        "name": "devassist_getGitLabMergeRequest",
+        "displayName": "Get GitLab merge request",
+        "modelDescription": "Get ONE GitLab merge request by IID (the number after '!'): description, author, reviewers, merge status, conflicts, head pipeline status and changed files. Set includeDiffs to true to also get the diffs (truncated to ~30k chars) when reviewing code.",
+        "userDescription": "Fetch a GitLab merge request.",
+        "toolReferenceName": "gitlabMR",
+        "canBeReferencedInPrompt": true,
+        "tags": ["devassist", "gitlab", "read"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "project": { "type": "string", "description": "Project path 'group/subgroup/project' or numeric ID. Omit (or 'current') to use the GitLab repo open in the workspace." },
+            "iid": { "type": "number", "description": "Merge request IID, e.g. 42 for !42" },
+            "includeDiffs": { "type": "boolean", "description": "Include unified diffs of changed files" }
+          },
+          "required": ["iid"]
+        }
+      },
+      {
+        "name": "devassist_listGitLabPipelines",
+        "displayName": "List GitLab pipelines",
+        "modelDescription": "List the most recent CI pipelines of a GitLab project (up to 10), optionally filtered by branch/tag and status. Use to check whether a branch is green.",
+        "userDescription": "List GitLab CI pipelines.",
+        "toolReferenceName": "gitlabPipelines",
+        "canBeReferencedInPrompt": true,
+        "tags": ["devassist", "gitlab", "read"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "project": { "type": "string", "description": "Project path 'group/subgroup/project' or numeric ID. Omit (or 'current') to use the GitLab repo open in the workspace." },
+            "ref": { "type": "string", "description": "Branch or tag name" },
+            "status": { "type": "string", "enum": ["created", "waiting_for_resource", "preparing", "pending", "running", "success", "failed", "canceled", "skipped", "manual", "scheduled"] }
+          }
+        }
+      },
+      {
+        "name": "devassist_getGitLabPipelineJobs",
+        "displayName": "Get GitLab pipeline jobs",
+        "modelDescription": "List the jobs of one GitLab pipeline with stage, status and failure reason. Use after listing pipelines to find which job failed, then read its log with devassist_getGitLabJobLog.",
+        "userDescription": "List jobs in a GitLab pipeline.",
+        "tags": ["devassist", "gitlab", "read"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "project": { "type": "string", "description": "Project path 'group/subgroup/project' or numeric ID. Omit (or 'current') to use the GitLab repo open in the workspace." },
+            "pipelineId": { "type": "number", "description": "Pipeline ID" }
+          },
+          "required": ["pipelineId"]
+        }
+      },
+      {
+        "name": "devassist_getGitLabJobLog",
+        "displayName": "Get GitLab job log",
+        "modelDescription": "Get the last lines of a GitLab CI job log (default 200, max 1000), with colour codes stripped. Use to explain why a job failed.",
+        "userDescription": "Read the tail of a GitLab CI job log.",
+        "toolReferenceName": "gitlabJobLog",
+        "canBeReferencedInPrompt": true,
+        "tags": ["devassist", "gitlab", "read"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "project": { "type": "string", "description": "Project path 'group/subgroup/project' or numeric ID. Omit (or 'current') to use the GitLab repo open in the workspace." },
+            "jobId": { "type": "number", "description": "Job ID" },
+            "lines": { "type": "number", "description": "How many lines from the end (default 200)" }
+          },
+          "required": ["jobId"]
+        }
+      },
+      {
+        "name": "devassist_listGitLabIssues",
+        "displayName": "List GitLab issues",
+        "modelDescription": "List GitLab issues (up to 20). Without project it searches every project the user can see; defaults: state=opened, scope=assigned_to_me when no project is given.",
+        "userDescription": "List GitLab issues.",
+        "toolReferenceName": "gitlabIssues",
+        "canBeReferencedInPrompt": true,
+        "tags": ["devassist", "gitlab", "read"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "project": { "type": "string", "description": "Optional project path, numeric ID, or 'current'. Omit to search all projects." },
+            "state": { "type": "string", "enum": ["opened", "closed", "all"] },
+            "scope": { "type": "string", "enum": ["assigned_to_me", "created_by_me", "all"] },
+            "search": { "type": "string", "description": "Text to match in title or description" },
+            "labels": { "type": "string", "description": "Comma-separated label names" }
+          }
+        }
+      },
+      {
+        "name": "devassist_searchGitLabProjects",
+        "displayName": "Search GitLab projects",
+        "modelDescription": "Find GitLab projects the user is a member of by name. Returns the 'group/project' path and ID to pass to the other GitLab tools.",
+        "userDescription": "Search GitLab projects.",
+        "tags": ["devassist", "gitlab", "read"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "search": { "type": "string", "description": "Part of the project name or path" }
+          },
+          "required": ["search"]
+        }
+      },
+      {
+        "name": "devassist_commentOnGitLabMergeRequest",
+        "displayName": "Comment on GitLab merge request",
+        "modelDescription": "Post a comment on a GitLab merge request. This WRITES to GitLab; only use when the user asked for it. Needs a token with the api scope.",
+        "userDescription": "Post a comment on a GitLab merge request (asks for confirmation).",
+        "tags": ["devassist", "gitlab", "write"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "project": { "type": "string", "description": "Project path 'group/subgroup/project' or numeric ID. Omit (or 'current') to use the GitLab repo open in the workspace." },
+            "iid": { "type": "number", "description": "Merge request IID" },
+            "body": { "type": "string", "description": "Comment text (GitLab Markdown)" }
+          },
+          "required": ["iid", "body"]
+        }
+      },
+      {
         "name": "devassist_loadSkill",
         "displayName": "Load skill",
         "modelDescription": "Load the full instructions of a named skill from the skills index, or a supporting file inside it. Call this before following a skill.",
@@ -125,10 +268,11 @@
         "id": "devassist.chat",
         "name": "assist",
         "fullName": "DevAssist",
-        "description": "Ask about Jira, builds, docs…",
+        "description": "Ask about Jira, GitLab merge requests and pipelines, skills…",
         "isSticky": true,
         "commands": [
-          { "name": "standup", "description": "Summarise my tickets for standup" }
+          { "name": "standup", "description": "Summarise my tickets for standup" },
+          { "name": "reviews", "description": "GitLab merge requests waiting for my review, and my own open ones" }
         ]
       }
     ]
