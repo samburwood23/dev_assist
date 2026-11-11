@@ -1,7 +1,7 @@
 {
   "name": "devassist",
   "displayName": "DevAssist",
-  "description": "Developer assistant: Jira tools, an @assist chat participant and skill folders for VS Code chat.",
+  "description": "Developer assistant: Jira tools, GitLab connection, an @assist chat participant and skill folders for VS Code chat.",
   "version": "0.0.1",
   "publisher": "devassist",
   "license": "UNLICENSED",
@@ -33,11 +33,27 @@
           "type": "string",
           "default": "",
           "description": "Account email, only used when authType is 'basic' (Jira Cloud)."
+        },
+        "devassist.gitlab.baseUrl": {
+          "type": "string",
+          "default": "https://gitlab.com",
+          "description": "GitLab base URL, e.g. https://gitlab.com or https://gitlab.company.com. The token is kept in the OS keychain: use the DevAssist sidebar or 'DevAssist: Set GitLab Token'."
         }
       }
     },
+    "viewsContainers": {
+      "activitybar": [
+        { "id": "devassist", "title": "DevAssist", "icon": "media/devassist.svg" }
+      ]
+    },
+    "views": {
+      "devassist": [
+        { "type": "webview", "id": "devassist.connections", "name": "Connections" }
+      ]
+    },
     "commands": [
       { "command": "devassist.setJiraToken", "title": "DevAssist: Set Jira Token" },
+      { "command": "devassist.setGitLabToken", "title": "DevAssist: Set GitLab Token" },
       { "command": "devassist.reloadSkills", "title": "DevAssist: Reload Skills" }
     ],
     "languageModelTools": [

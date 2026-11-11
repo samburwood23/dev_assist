@@ -10,6 +10,8 @@ src/
 ├─ extension.ts         wiring only
 ├─ auth/secrets.ts      tokens via SecretStorage (OS keychain)
 ├─ clients/jira.ts      plain REST client, no VS Code types (unit-tested)
+├─ clients/gitlab.ts    GitLab REST client (unit-tested)
+├─ views/connectionsView.ts  sidebar webview for entering GitLab URL + token
 ├─ tools/jiraTools.ts   LM tool registrations
 ├─ chat/participant.ts  @assist chat loop (+ /standup)
 └─ skills/              skill loader + devassist_loadSkill tool
@@ -28,7 +30,12 @@ Press **F5** to open an Extension Development Host. Then:
 1. Settings → `devassist.jira.baseUrl` (e.g. `https://jira.company.com`).
    For Jira Cloud also set `devassist.jira.authType` to `basic` and `devassist.jira.email`.
 2. Run **DevAssist: Set Jira Token**.
-3. In Copilot Chat agent mode, open the tools picker and check the DevAssist tools are listed,
+3. GitLab: click the **DevAssist** icon in the activity bar. In **Connections**, enter your GitLab URL
+   (defaults to `https://gitlab.com`) and a personal access token with the `read_api` scope, then **Save**.
+   The token is checked against `/api/v4/user` and stored in the OS keychain (SecretStorage); it is never
+   written to settings or sent back to the webview. **DevAssist: Set GitLab Token** does the same from the
+   command palette.
+4. In Copilot Chat agent mode, open the tools picker and check the DevAssist tools are listed,
    or type `@assist what's the status of PROJ-123?` / `@assist /standup`.
 
 ```bash
@@ -60,6 +67,9 @@ description: What it's for and when to use it. This is all the model sees until 
 ---
 # Steps...
 ```
+
+Built-in skills: `release-checklist`, `incident-triage`, and `aws-network-engineer` (VPC/CIDR design,
+Transit Gateway, hybrid connectivity, connectivity troubleshooting and network IaC review).
 
 Skills are loaded from, in increasing priority (later wins on name clash):
 
