@@ -1,0 +1,136 @@
+{
+  "name": "devassist",
+  "displayName": "DevAssist",
+  "description": "Developer assistant: Jira tools, an @assist chat participant and skill folders for VS Code chat.",
+  "version": "0.0.1",
+  "publisher": "devassist",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": { "vscode": "^1.99.0" },
+  "categories": ["AI", "Chat"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "DevAssist",
+      "properties": {
+        "devassist.jira.baseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Jira base URL, e.g. https://jira.company.com"
+        },
+        "devassist.jira.authType": {
+          "type": "string",
+          "enum": ["bearer", "basic"],
+          "enumDescriptions": [
+            "Jira Server/Data Center personal access token (Authorization: Bearer)",
+            "Jira Cloud API token (Authorization: Basic base64(email:token))"
+          ],
+          "default": "bearer",
+          "description": "How to authenticate to Jira."
+        },
+        "devassist.jira.email": {
+          "type": "string",
+          "default": "",
+          "description": "Account email, only used when authType is 'basic' (Jira Cloud)."
+        }
+      }
+    },
+    "commands": [
+      { "command": "devassist.setJiraToken", "title": "DevAssist: Set Jira Token" },
+      { "command": "devassist.reloadSkills", "title": "DevAssist: Reload Skills" }
+    ],
+    "languageModelTools": [
+      {
+        "name": "devassist_getJiraIssue",
+        "displayName": "Get Jira issue",
+        "modelDescription": "Get the summary, status, assignee and description of ONE Jira issue by key (e.g. PROJ-123). Use when the user mentions a ticket key.",
+        "userDescription": "Fetch a Jira issue by key.",
+        "toolReferenceName": "jiraIssue",
+        "canBeReferencedInPrompt": true,
+        "tags": ["devassist", "jira", "read"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "key": { "type": "string", "description": "Issue key, e.g. PROJ-123" }
+          },
+          "required": ["key"]
+        }
+      },
+      {
+        "name": "devassist_searchJira",
+        "displayName": "Search Jira",
+        "modelDescription": "Search Jira with JQL. Returns up to 20 keys with summary and status. Prefer narrow JQL (project, assignee, status).",
+        "userDescription": "Search Jira with JQL.",
+        "toolReferenceName": "jiraSearch",
+        "canBeReferencedInPrompt": true,
+        "tags": ["devassist", "jira", "read"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "jql": { "type": "string", "description": "JQL query, e.g. assignee = currentUser() AND resolution = Unresolved" }
+          },
+          "required": ["jql"]
+        }
+      },
+      {
+        "name": "devassist_addJiraComment",
+        "displayName": "Comment on Jira issue",
+        "modelDescription": "Post a comment on a Jira issue. This WRITES to Jira; only use when the user asked for it.",
+        "userDescription": "Post a comment on a Jira issue (asks for confirmation).",
+        "tags": ["devassist", "jira", "write"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "key": { "type": "string", "description": "Issue key, e.g. PROJ-123" },
+            "body": { "type": "string", "description": "Comment text (Jira wiki markup)" }
+          },
+          "required": ["key", "body"]
+        }
+      },
+      {
+        "name": "devassist_loadSkill",
+        "displayName": "Load skill",
+        "modelDescription": "Load the full instructions of a named skill from the skills index, or a supporting file inside it. Call this before following a skill.",
+        "userDescription": "Load a DevAssist skill.",
+        "tags": ["devassist", "read"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string", "description": "Skill name from the index" },
+            "file": { "type": "string", "description": "Optional relative file inside the skill folder, e.g. rollback.md" }
+          },
+          "required": ["name"]
+        }
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "devassist.chat",
+        "name": "assist",
+        "fullName": "DevAssist",
+        "description": "Ask about Jira, builds, docs…",
+        "isSticky": true,
+        "commands": [
+          { "name": "standup", "description": "Summarise my tickets for standup" }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "package": "npm run check-types && node esbuild.js --production",
+    "check-types": "tsc --noEmit",
+    "test": "node --test --experimental-transform-types --no-warnings test/*.test.ts",
+    "vsix": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "20.x",
+    "@types/vscode": "^1.99.0",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.0"
+  }
+}

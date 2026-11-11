@@ -1,0 +1,10 @@
+.vscode/**
+src/**
+test/**
+node_modules/**
+esbuild.js
+tsconfig.json
+**/*.map
+**/*.ts
+.gitignore
+# skills/ is intentionally NOT ignored: built-in skills ship in the .vsix
