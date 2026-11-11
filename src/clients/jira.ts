@@ -68,6 +68,12 @@ export class JiraClient {
     return (await res.json()) as T;
   }
 
+  /** The account the token belongs to; used to verify credentials. */
+  async myself(): Promise<{ displayName: string; name?: string }> {
+    const r = await this.request<any>(`/rest/api/2/myself`);
+    return { displayName: r.displayName, name: r.name ?? r.emailAddress ?? undefined };
+  }
+
   async getIssue(key: string): Promise<JiraIssue> {
     const r = await this.request<any>(
       `/rest/api/2/issue/${encodeURIComponent(key)}?fields=summary,status,assignee,description`,
