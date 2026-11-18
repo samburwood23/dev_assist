@@ -8,7 +8,7 @@ import {
 } from "./views/connectionsView";
 import { registerJiraTools } from "./tools/jiraTools";
 import { registerGitLabTools } from "./tools/gitlabTools";
-import { registerParticipant } from "./chat/participant";
+import { registerCopilotInstructions } from "./copilot/instructions";
 import { SkillLibrary } from "./skills/skills";
 
 // Wiring only: each service is a client file + a tools file + manifest entries.
@@ -86,10 +86,10 @@ export async function activate(ctx: vscode.ExtensionContext) {
   registerJiraTools(ctx, jira);
   registerGitLabTools(ctx, gitlab);
   skills.registerTools();
-  registerParticipant(ctx, skills);
+  registerCopilotInstructions(ctx, skills);
   new ConnectionsViewProvider(secrets, { gitlab, jira, aws }).register(ctx);
 
-  await skills.reload();
+  await skills.reload(); // fires onDidChange, which writes the Copilot instructions file
 }
 
 export function deactivate() {}
