@@ -1,7 +1,8 @@
 # DevAssist
 
-A VS Code extension that gives Copilot Chat (agent mode) and its own `@assist` participant access to Jira,
-plus "skills": folders of markdown procedures the model loads on demand.
+A VS Code extension that gives GitHub Copilot Chat (agent mode) access to Jira and GitLab, plus "skills": folders
+of markdown procedures the model loads on demand. There is no separate chat participant: everything runs in
+Copilot Chat with whichever model you pick there.
 
 ## Layout
 
@@ -15,7 +16,7 @@ src/
 ├─ tools/gitlabTools.ts GitLab LM tools (MRs, pipelines, job logs, issues, projects)
 ├─ views/connectionsView.ts  sidebar webview: GitLab, Jira and AWS credentials
 ├─ tools/jiraTools.ts   LM tool registrations
-├─ chat/participant.ts  @assist chat loop (+ /standup)
+├─ copilot/             instructions file Copilot Chat reads (tool guidance + skills index)
 └─ skills/              skill loader + devassist_loadSkill tool
 skills/                 built-in skills shipped in the .vsix
 test/                   node:test unit tests
@@ -42,8 +43,17 @@ Press **F5** to open an Extension Development Host. Then:
    Secrets are stored in the OS keychain (VS Code SecretStorage), never in settings, and are never sent back to the
    webview. URLs, Jira type/email and AWS region are ordinary settings under `devassist.*`. The
    **DevAssist: Set Jira Token** / **Set GitLab Token** commands still work too.
-2. In Copilot Chat agent mode, open the tools picker and check the DevAssist tools are listed,
-   or type `@assist what's the status of PROJ-123?`, `@assist /standup` or `@assist /reviews`.
+2. Open Copilot Chat, switch to **Agent** mode, and check the DevAssist tools are ticked in the tools picker.
+   Then just ask: `what's the status of PROJ-123?`, `write my standup`, `what MRs do I need to review?`.
+   You can also reference a tool directly with `#`, e.g. `#jiraIssue PROJ-123` or `#gitlabJobLog`.
+
+### How Copilot learns about DevAssist
+
+Copilot Chat has no API for extensions to add to its prompt, so DevAssist writes a `devassist.instructions.md`
+file (tool guidance plus the skills index, `applyTo: "**"`) into its own storage folder and adds that folder to
+your user setting `chat.instructionsFilesLocations`. Copilot attaches it to every agent-mode request, and it is
+regenerated whenever skills change. Turn this off with `devassist.copilotInstructions: false`, which also removes
+the setting entry. Even without it, the model can call `devassist_loadSkill` with no arguments to list skills.
 
 ### GitLab tools
 
@@ -92,8 +102,8 @@ description: What it's for and when to use it. This is all the model sees until 
 # Steps...
 ```
 
-Built-in skills: `release-checklist`, `incident-triage`, and `aws-network-engineer` (VPC/CIDR design,
-Transit Gateway, hybrid connectivity, connectivity troubleshooting and network IaC review).
+Built-in skills: `release-checklist`, `incident-triage`, `standup`, `gitlab-reviews`, and `aws-network-engineer`
+(VPC/CIDR design, Transit Gateway, hybrid connectivity, connectivity troubleshooting and network IaC review).
 
 Skills are loaded from, in increasing priority (later wins on name clash):
 
@@ -101,12 +111,13 @@ Skills are loaded from, in increasing priority (later wins on name clash):
 2. `~/.devassist/skills/` (personal)
 3. `<workspace>/.devassist/skills/` (per-repo, committed)
 
-Only a one-line index goes into the prompt; the model calls `devassist_loadSkill` for the full text or for
+Only a one-line index goes into Copilot's instructions; the model calls `devassist_loadSkill` for the full text or for
 supporting files (`file: "rollback.md"`). Workspace skills reload automatically when edited;
 run **DevAssist: Reload Skills** after changing personal skills.
 
 ## Adding a service
 
 Each new service (CI, docs, artifact repository) is a client in `src/clients/`, a tools file in `src/tools/`,
-and `languageModelTools` entries in `package.json` tagged `devassist` plus `read` or `write`. Give every write
-tool a `prepareInvocation` confirmation.
+and `languageModelTools` entries in `package.json` tagged `devassist` plus `read` or `write`. Every tool needs
+`"canBeReferencedInPrompt": true` and a `toolReferenceName`, or Copilot agent mode won't offer it. Give every
+write tool a `prepareInvocation` confirmation.

@@ -1,7 +1,7 @@
 {
   "name": "devassist",
   "displayName": "DevAssist",
-  "description": "Developer assistant: Jira and GitLab tools, AWS credentials, an @assist chat participant and skill folders for VS Code chat.",
+  "description": "Developer assistant: Jira and GitLab tools, AWS credentials, and skill folders for GitHub Copilot Chat agent mode.",
   "version": "0.0.1",
   "publisher": "devassist",
   "license": "UNLICENSED",
@@ -38,6 +38,11 @@
           "type": "string",
           "default": "https://gitlab.com",
           "description": "GitLab base URL, e.g. https://gitlab.com or https://gitlab.company.com. The token is kept in the OS keychain: use the DevAssist sidebar or 'DevAssist: Set GitLab Token'."
+        },
+        "devassist.copilotInstructions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Give Copilot Chat a DevAssist instructions file (how to use the tools, plus the skills index) by adding its folder to 'chat.instructionsFilesLocations'."
         },
         "devassist.aws.region": {
           "type": "string",
@@ -101,6 +106,8 @@
         "displayName": "Comment on Jira issue",
         "modelDescription": "Post a comment on a Jira issue. This WRITES to Jira; only use when the user asked for it.",
         "userDescription": "Post a comment on a Jira issue (asks for confirmation).",
+        "toolReferenceName": "jiraComment",
+        "canBeReferencedInPrompt": true,
         "tags": ["devassist", "jira", "write"],
         "inputSchema": {
           "type": "object",
@@ -170,6 +177,8 @@
         "displayName": "Get GitLab pipeline jobs",
         "modelDescription": "List the jobs of one GitLab pipeline with stage, status and failure reason. Use after listing pipelines to find which job failed, then read its log with devassist_getGitLabJobLog.",
         "userDescription": "List jobs in a GitLab pipeline.",
+        "toolReferenceName": "gitlabJobs",
+        "canBeReferencedInPrompt": true,
         "tags": ["devassist", "gitlab", "read"],
         "inputSchema": {
           "type": "object",
@@ -222,6 +231,8 @@
         "displayName": "Search GitLab projects",
         "modelDescription": "Find GitLab projects the user is a member of by name. Returns the 'group/project' path and ID to pass to the other GitLab tools.",
         "userDescription": "Search GitLab projects.",
+        "toolReferenceName": "gitlabProjects",
+        "canBeReferencedInPrompt": true,
         "tags": ["devassist", "gitlab", "read"],
         "inputSchema": {
           "type": "object",
@@ -236,6 +247,8 @@
         "displayName": "Comment on GitLab merge request",
         "modelDescription": "Post a comment on a GitLab merge request. This WRITES to GitLab; only use when the user asked for it. Needs a token with the api scope.",
         "userDescription": "Post a comment on a GitLab merge request (asks for confirmation).",
+        "toolReferenceName": "gitlabComment",
+        "canBeReferencedInPrompt": true,
         "tags": ["devassist", "gitlab", "write"],
         "inputSchema": {
           "type": "object",
@@ -250,30 +263,18 @@
       {
         "name": "devassist_loadSkill",
         "displayName": "Load skill",
-        "modelDescription": "Load the full instructions of a named skill from the skills index, or a supporting file inside it. Call this before following a skill.",
-        "userDescription": "Load a DevAssist skill.",
+        "modelDescription": "DevAssist skills are step-by-step team procedures (e.g. releases, incident triage, AWS network design and troubleshooting, standup summaries, merge request reviews). Call with no arguments to list the available skills with their descriptions; call with a name to load that skill's full instructions before following it, and with name + file to read a supporting file inside it. Check the list whenever the user's request sounds like a procedure, checklist, runbook or recurring task.",
+        "userDescription": "List or load DevAssist skills.",
+        "toolReferenceName": "skill",
+        "canBeReferencedInPrompt": true,
         "tags": ["devassist", "read"],
         "inputSchema": {
           "type": "object",
           "properties": {
-            "name": { "type": "string", "description": "Skill name from the index" },
+            "name": { "type": "string", "description": "Skill name. Omit to list all skills." },
             "file": { "type": "string", "description": "Optional relative file inside the skill folder, e.g. rollback.md" }
-          },
-          "required": ["name"]
+          }
         }
-      }
-    ],
-    "chatParticipants": [
-      {
-        "id": "devassist.chat",
-        "name": "assist",
-        "fullName": "DevAssist",
-        "description": "Ask about Jira, GitLab merge requests and pipelines, skills…",
-        "isSticky": true,
-        "commands": [
-          { "name": "standup", "description": "Summarise my tickets for standup" },
-          { "name": "reviews", "description": "GitLab merge requests waiting for my review, and my own open ones" }
-        ]
       }
     ]
   },

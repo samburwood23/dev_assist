@@ -3,6 +3,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import { isInside, parseFrontmatter } from "./frontmatter";
+import { skillIndex, SkillSummary } from "../copilot/instructionsText";
 
 interface Skill { name: string; description: string; dir: string; body: string }
 
@@ -13,6 +14,9 @@ interface Skill { name: string; description: string; dir: string; body: string }
 export class SkillLibrary {
   private skills = new Map<string, Skill>();
   private reloading: Promise<void> | undefined;
+  private readonly changed = new vscode.EventEmitter<void>();
+  /** Fires after every reload, so the Copilot instructions file can be regenerated. */
+  readonly onDidChange = this.changed.event;
 
   constructor(private readonly ctx: vscode.ExtensionContext) {}
 
@@ -43,27 +47,28 @@ export class SkillLibrary {
       }
     }
     this.skills = next; // swap atomically so readers never see a half-loaded map
+    this.changed.fire();
   }
 
   names(): string[] {
     return [...this.skills.keys()];
   }
 
-  indexForPrompt(): string {
-    if (!this.skills.size) { return ""; }
-    return "Available skills (call devassist_loadSkill to read one before following it):\n" +
-      [...this.skills.values()].map((s) => `- ${s.name}: ${s.description}`).join("\n");
+  list(): SkillSummary[] {
+    return [...this.skills.values()].map(({ name, description }) => ({ name, description }));
   }
 
   registerTools() {
     const out = (s: string) => new vscode.LanguageModelToolResult([new vscode.LanguageModelTextPart(s)]);
 
     this.ctx.subscriptions.push(
-      vscode.lm.registerTool<{ name: string; file?: string }>("devassist_loadSkill", {
+      vscode.lm.registerTool<{ name?: string; file?: string }>("devassist_loadSkill", {
         prepareInvocation: ({ input }) => ({
-          invocationMessage: input.file ? `Loading ${input.name}/${input.file}…` : `Loading skill ${input.name}…`,
+          invocationMessage: !input.name ? "Listing DevAssist skills…"
+            : input.file ? `Loading ${input.name}/${input.file}…` : `Loading skill ${input.name}…`,
         }),
         invoke: async ({ input }) => {
+          if (!input.name) { return out(skillIndex(this.list())); }
           const skill = this.skills.get(input.name);
           if (!skill) { return out(`No skill "${input.name}". Known: ${this.names().join(", ") || "(none)"}`); }
           if (!input.file) { return out(skill.body); }
@@ -84,6 +89,6 @@ export class SkillLibrary {
     watcher.onDidChange(reload);
     watcher.onDidCreate(reload);
     watcher.onDidDelete(reload);
-    this.ctx.subscriptions.push(watcher, vscode.workspace.onDidChangeWorkspaceFolders(reload));
+    this.ctx.subscriptions.push(watcher, this.changed, vscode.workspace.onDidChangeWorkspaceFolders(reload));
   }
 }
